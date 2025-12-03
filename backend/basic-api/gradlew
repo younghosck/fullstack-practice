@@ -1,0 +1,41 @@
+#!/bin/sh
+
+# Simplified Gradle wrapper script for macOS/Linux
+APP_HOME=$(cd "$(dirname "$0")" && pwd -P)
+APP_BASE_NAME=${0##*/}
+DEFAULT_JVM_OPTS="-Xmx64m -Xms64m"
+CLASSPATH="$APP_HOME/gradle/wrapper/gradle-wrapper.jar"
+GRADLE_USER_HOME=${GRADLE_USER_HOME:-"$APP_HOME/.gradle"}
+export GRADLE_USER_HOME
+
+# Prefer Java 17 (or the highest compatible version) on macOS if JAVA_HOME is not set.
+if [ -z "$JAVA_HOME" ] && [ "$(uname)" = "Darwin" ]; then
+    JAVA_HOME="$(/usr/libexec/java_home -v 17 2>/dev/null || true)"
+fi
+
+# Determine Java command
+if [ -n "$JAVA_HOME" ]; then
+    if [ -x "$JAVA_HOME/bin/java" ]; then
+        JAVACMD="$JAVA_HOME/bin/java"
+    else
+        echo "ERROR: JAVA_HOME is set to an invalid directory: $JAVA_HOME" >&2
+        exit 1
+    fi
+else
+    JAVACMD=java
+    if ! command -v java >/dev/null 2>&1; then
+        echo "ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH." >&2
+        exit 1
+    fi
+fi
+
+# macOS Finder launches from $HOME, fix working dir
+if [ "$(uname)" = "Darwin" ] && [ "$HOME" = "$PWD" ]; then
+  cd "$APP_HOME" || exit 1
+fi
+
+# shellcheck disable=SC2086  # intentional splitting for opts
+exec "$JAVACMD" $DEFAULT_JVM_OPTS $JAVA_OPTS $GRADLE_OPTS \
+  "-Dorg.gradle.appname=$APP_BASE_NAME" \
+  -classpath "$CLASSPATH" \
+  org.gradle.wrapper.GradleWrapperMain "$@"
