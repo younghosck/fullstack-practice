@@ -1,18 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "./App.css";
 
-const initialProposals = [
-  {
-    id: 1,
-    title: "횡단보도 신설 요청",
-    content: "OO초등학교 앞 차량 통행이 많아 아이들 안전이 우려됩니다.",
-  },
-  {
-    id: 2,
-    title: "공원 내 야간 조명 설치",
-    content: "동네 공원이 너무 어두워서 야간 이용이 어렵습니다.",
-  },
-];
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
 function ProposalList({ proposals }) {
   if (proposals.length === 0) {
@@ -31,18 +20,18 @@ function ProposalList({ proposals }) {
   );
 }
 
-function ProposalForm({ onSubmit }) {
+function ProposalForm({ onSubmit, submitting }) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title.trim() || !content.trim()) {
       alert("제목과 내용을 모두 입력해 주세요.");
       return;
     }
 
-    onSubmit({ title, content });
+    await onSubmit({ title, content });
     setTitle("");
     setContent("");
   };
@@ -58,6 +47,7 @@ function ProposalForm({ onSubmit }) {
           placeholder="예) 횡단보도 신설 요청"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
+          disabled={submitting}
         />
       </div>
 
@@ -69,42 +59,97 @@ function ProposalForm({ onSubmit }) {
           placeholder="제안하고 싶은 내용을 구체적으로 적어주세요."
           value={content}
           onChange={(e) => setContent(e.target.value)}
+          disabled={submitting}
         />
       </div>
 
-      <button type="submit" className="submit-button">
-        제안 등록
+      <button type="submit" className="submit-button" disabled={submitting}>
+        {submitting ? "등록 중..." : "제안 등록"}
       </button>
     </form>
   );
 }
 
 function App() {
-  const [proposals, setProposals] = useState(initialProposals);
+  const [proposals, setProposals] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
 
-  const handleAddProposal = (newProposal) => {
-    const nextId =
-      proposals.length > 0 ? proposals[proposals.length - 1].id + 1 : 1;
-    setProposals([...proposals, { id: nextId, ...newProposal }]);
+  // ✅ 초기 로딩 시 백엔드에서 제안 목록 가져오기
+  useEffect(() => {
+    const fetchProposals = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const res = await fetch(`${API_BASE_URL}/proposals`);
+        if (!res.ok) {
+          throw new Error(`Failed to fetch: ${res.status}`);
+        }
+
+        const data = await res.json();
+        setProposals(data);
+      } catch (err) {
+        console.error(err);
+        setError("제안 목록을 불러오는 중 문제가 발생했습니다.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProposals();
+  }, []);
+
+  // ✅ 새 제안 등록 시 백엔드로 POST
+  const handleAddProposal = async (newProposal) => {
+    try {
+      setSubmitting(true);
+      setError(null);
+
+      const res = await fetch(`${API_BASE_URL}/proposals`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(newProposal),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to create: ${res.status}`);
+      }
+
+      const created = await res.json();
+
+      // 백엔드가 생성된 Proposal 객체를 반환한다고 가정
+      setProposals((prev) => [...prev, created]);
+    } catch (err) {
+      console.error(err);
+      setError("제안 등록 중 문제가 발생했습니다.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <div className="app">
       <header className="header">
-        <h1>공개제안 클론 서비스 (Vite + React)</h1>
+        <h1>공개제안 클론 서비스 (Vite + React + Spring)</h1>
         <p className="subtitle">
-          국민신문고 공개제안 기능을 연습용으로 단순화한 화면입니다.
+          프론트엔드(Vite)와 백엔드(Spring Boot)를 실제로 연동한 연습용 화면입니다.
         </p>
       </header>
 
       <main className="main">
         <section className="left">
           <h2>제안 목록</h2>
-          <ProposalList proposals={proposals} />
+          {loading && <p>불러오는 중...</p>}
+          {error && <p style={{ color: "red", fontSize: "0.9rem" }}>{error}</p>}
+          {!loading && !error && <ProposalList proposals={proposals} />}
         </section>
 
         <section className="right">
-          <ProposalForm onSubmit={handleAddProposal} />
+          <ProposalForm onSubmit={handleAddProposal} submitting={submitting} />
         </section>
       </main>
     </div>
